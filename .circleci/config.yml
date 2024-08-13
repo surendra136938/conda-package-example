@@ -50,6 +50,7 @@ jobs:
             git config --global user.name "surendra136938"
             
             # Checkout the branch or create it if it doesn't exist
+            git fetch origin
             git checkout packages || git checkout -b packages
             
             # Copy the package to the repo
@@ -57,12 +58,16 @@ jobs:
             git add ${PACKAGE_NAME}
             git commit -m "Add new Conda package ${PACKAGE_NAME}"
             
-            # Pull and rebase to handle conflicts
-            git pull origin packages --rebase || {
-              echo "Merge conflict encountered. Resolving..."
-              git rebase --abort
-              git pull origin packages --no-rebase
-            }
+            # Pull and rebase to handle conflicts, if branch exists remotely
+            if git show-ref --verify --quiet refs/remotes/origin/packages; then
+              git pull origin packages --rebase || {
+                echo "Merge conflict encountered. Resolving..."
+                git rebase --abort
+                git pull origin packages --no-rebase
+              }
+            else
+              echo "Branch 'packages' does not exist on remote; skipping rebase."
+            fi
             
             git push origin packages
 
