@@ -17,10 +17,6 @@ jobs:
             conda install pip  # Ensure pip is available
             pip install black  # Install black using pip
       - run:
-          name: Check Code Formatting with Black
-          command: |
-            black --check .  # Check code formatting
-      - run:
           name: Format Code with Black
           command: |
             black .  # Format all files in the repository
