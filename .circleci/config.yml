@@ -11,8 +11,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Conda Build and AWS CLI
-          command: conda install conda-build awscli -c conda-forge
+          name: Install Conda Build, AWS CLI, and Black
+          command: |
+            conda install conda-build awscli -c conda-forge
+            conda install pip  # Ensure pip is available
+            pip install black  # Install black using pip
       - run:
           name: Format Code with Black
           command: |
