@@ -41,7 +41,7 @@ jobs:
             
             
             # Clone the repository using HTTPS with a Personal Access Token
-            git clone https://surendra2:${GITHUB_TOKEN}@github.com/surendra2/conda-store.git
+            git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
             cd conda-store
             
             # Configure Git user
