@@ -14,6 +14,10 @@ jobs:
           name: Install Conda Build and AWS CLI
           command: conda install conda-build awscli -c conda-forge
       - run:
+          name: Format Code with Black
+          command: |
+                  black .  # Format all files in the repository
+      - run:
           name: Build Conda Package
           command: |
             conda build conda-recipe --output-folder /tmp/conda-bld
