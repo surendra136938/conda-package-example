@@ -29,9 +29,7 @@ jobs:
       - run:
           name: Upload to Another Git Repo
           command: |
-           
-            PACKAGE_NAME=$(basename ${PACKAGE_PATH})
-            echo "Found package: ${PACKAGE_NAME}" # Find the package file
+            # Find the package file
             PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
             
             if [ -z "$PACKAGE_PATH" ]; then
@@ -39,6 +37,9 @@ jobs:
               exit 1
             fi
             
+            # Extract the package name from the path
+            PACKAGE_NAME=$(basename ${PACKAGE_PATH})
+            echo "Found package: ${PACKAGE_NAME}"
             
             # Clone the repository using HTTPS with a Personal Access Token
             git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
@@ -64,6 +65,7 @@ jobs:
             }
             
             git push origin packages
+
       - run:
           name: Clean up
           command: conda clean --all --yes
