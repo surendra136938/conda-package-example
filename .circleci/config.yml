@@ -45,8 +45,8 @@ jobs:
             cd conda-store
             
             # Configure Git user
-            git config --global user.email "surendranagula@gmail.com"
-            git config --global user.name "surendra nagula"
+            git config --global user.email "surendra.nagula.contractor@realtor.com"
+            git config --global user.name "surendra136938"
             
             # Checkout the branch or create it if it doesn't exist
             git checkout packages || git checkout -b packages
