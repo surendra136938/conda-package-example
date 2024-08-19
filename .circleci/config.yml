@@ -24,12 +24,13 @@ jobs:
           name: Trigger my_package Build
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
-              circleci config process .circleci/ocpipes.yml > processed.yml
-              circleci local execute -c processed.yml || exit 1
+              echo "Triggering my_package build..."
+              curl -u ${CIRCLECI_TOKEN}: \
+                -d build_parameters[CIRCLE_JOB]=build_and_upload \
+                -X POST https://circleci.com/api/v2/project/github/{surendra136938}/{conda-package-example}/pipeline
             else
               echo "Skipping my_package build"
             fi
-
 workflows:
   version: 2
   check-changes:
