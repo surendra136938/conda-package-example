@@ -5,24 +5,30 @@ setup: true
 jobs:
   check_for_changes:
     docker:
-      - image: circleci/python:3.8  # Or any image of your choice
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run:
           name: Check for changes in "my_package" directory
           command: |
+            echo "Checking for changes in 'my_package' directory..."
+            git fetch origin
             if git diff --quiet origin/main...HEAD -- my_package/; then
               echo "No changes detected in my_package"
-              circleci-agent step halt
+              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
             else
               echo "Changes detected in my_package"
-   # No need to use a variable for skipping, halt directly stops execution.
-
+              echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
+            fi
       - run:
-          name: Trigger Main Pipeline
+          name: Trigger my_package Build
           command: |
-            circleci config process .circleci/ocpipes.yml > processed.yml
-            circleci local execute -c processed.yml
+            if [ "$SKIP_PIPELINE" = "false" ]; then
+              circleci config process .circleci/ocpipes.yml > processed.yml
+              circleci local execute -c processed.yml || exit 1
+            else
+              echo "Skipping my_package build"
+            fi
 
 workflows:
   version: 2
