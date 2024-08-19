@@ -6,24 +6,6 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
-      
-      # Enable shell debugging
-      - run:
-          name: Enable shell debugging
-          command: set -x
-
-      # Log important environment variables
-      - run:
-          name: Log Environment Variables
-          command: |
-            echo "CircleCI Environment Variables:"
-            echo "CIRCLE_PROJECT_USERNAME: $CIRCLE_PROJECT_USERNAME"
-            echo "CIRCLE_PROJECT_REPONAME: $CIRCLE_PROJECT_REPONAME"
-            echo "CIRCLE_BRANCH: $CIRCLE_BRANCH"
-            echo "CIRCLE_TOKEN: $CIRCLE_TOKEN"
-            echo "CIRCLE_JOB: $CIRCLE_JOB"
-
-      # Check for changes in the "my_package" directory
       - run:
           name: Check for changes in "my_package" directory
           command: |
@@ -36,16 +18,14 @@ jobs:
               echo "Changes detected in my_package"
               echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
             fi
-      
-      # Trigger my_package build with debugging
       - run:
-          name: Trigger my_package Build with Debugging
+          name: Trigger my_package Build
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Triggering my_package build..."
-              
+
               # Log the request body for debugging
-              REQUEST_BODY=$(cat <<EOF
+              REQUEST_BODY=$(cat \<<EOF
               {
                 "branch": "main",
                 "parameters": {
@@ -60,7 +40,6 @@ jobs:
               # Make the API call and log the full response
               RESPONSE=$(curl -X POST --header "Content-Type: application/json" --header "Circle-Token: $CIRCLE_TOKEN" -d "$REQUEST_BODY" https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline)
               echo "API Response: $RESPONSE"
-
             else
               echo "Skipping my_package build"
             fi
@@ -69,4 +48,5 @@ workflows:
   version: 2
   check-changes:
     jobs:
-      - check_for_changes
+      - check_for_changes:
+          ssh: true
