@@ -1,3 +1,3 @@
 def say_hello(): 
 
-    return "Hello from Conda Package!" 
+    return "Hello from Conda Packages!" 
