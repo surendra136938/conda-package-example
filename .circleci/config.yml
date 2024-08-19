@@ -32,6 +32,7 @@ jobs:
                     }' \
                 -H "Content-Type: application/json" \
                 -X POST https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline
+
             else
               echo "Skipping my_package build"
             fi
