@@ -1,89 +1,181 @@
 version: 2.1
 
+orbs:
+  moverdc: moverdc/move-ci@0
+
+parameters:
+  release_branch:
+    type: string
+    default: "main"
+  artifactory_repo:
+    type: string
+    default: "InnerOpenSource-shared-pypi-local"
+
 executors:
-  conda-executor:
+  container:
     docker:
-      - image: continuumio/miniconda3
+      - image: cimg/python:3.9
+        environment:
+          PYTHONPATH: /home/circleci/project/lib
+  linux-vm:
+    machine:
+      image: ubuntu-2204:current # see https://circleci.com/developer/machine/image/ubuntu-2204
+    resource_class: large
 
 jobs:
-  build:
-    executor: conda-executor
+  setup:
+    executor: container
+    steps:
+      - attach_workspace:
+          at: .
+      - moverdc/aws-proxy-up:
+          export-proxy-variables: http
+      - checkout
+      - run:
+          name: setup lib directory
+          command: mkdir ./lib
+      - run:
+          name: Install python requirements
+          command: pip3 install --no-cache-dir -r requirements.txt -t ./lib
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  linting:
+    executor: container
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: linting
+          command: python -m invoke lint.run
+
+  test:
+    executor: linux-vm
+    environment:
+      NO_PROXY: 127.0.0.1,localhost,localstack
+    steps:
+      - attach_workspace:
+          at: .
+      - moverdc/aws-proxy-up:
+          export-proxy-variables: http
+      - run:
+          name: "Switch to Python 3.9"
+          command: |
+            pyenv install 3.9.14
+            pyenv global 3.9.14
+      - run:
+          name: Start Docker Compose and verify LocalStack
+          command: |
+            docker-compose up -d
+            sleep 10
+            aws --endpoint-url=http://localhost:4566 s3api list-buckets 1> /dev/null
+      - run:
+          name: Install Python modules
+          command: pip3 install --no-cache-dir -r requirements.txt
+      - run:
+          name: Run Python tests
+          command: python3 -m invoke test.run
+      - run:
+          name: check coverage
+          command: python3 -m coverage report
+      - run:
+          name: Docker Compose tear-down
+          command: |
+            docker-compose kill
+            docker-compose rm -f -v
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .coverage
+
+  static-analysis:
+    executor: container
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Static Type Analysis
+          command: python -m invoke typecheck.run
+
+  sonar:
+    executor: container
+    steps:
+      - moverdc/aws-proxy-up:
+          export-proxy-variables: socks5
+      - attach_workspace:
+          at: .
+      - run:
+          name: Generate coverage report
+          command: python -m coverage xml
+      - moverdc/sonar-scan
+
+  publish:
+    executor: container
+    steps:
+      - attach_workspace:
+          at: .
+      - moverdc/artifactory-python-publish-legacy:
+          release-branch: << pipeline.parameters.release_branch >>
+          artifactory-repo: << pipeline.parameters.artifactory_repo >>
+
+  check_for_changes:
+    docker:
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run:
-          name: Install Conda Build, AWS CLI, and Black
+          name: Check for changes in "my_package" directory
           command: |
-            conda install conda-build awscli -c conda-forge
-            conda install pip  # Ensure pip is available
-            pip install black  # Install black using pip
-      - run:
-          name: Format Code with Black
-          command: |
-            black .  # Format all files in the repository
-      - run:
-          name: Build Conda Package
-          command: |
-            conda build conda-recipe --output-folder /tmp/conda-bld
-            echo "Listing contents of /tmp/conda-bld:"
-            ls -l /tmp/conda-bld
-      - run:
-          name: Debug Package Directory
-          command: |
-            echo "Listing contents of /tmp/conda-bld/linux-64:"
-            ls -l /tmp/conda-bld/linux-64
-            echo "Listing contents of /tmp/conda-bld/noarch:"
-            ls -l /tmp/conda-bld/noarch
-      - run:
-          name: Upload to Another Git Repo
-          command: |
-            # Find the package file
-            PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
-            
-            if [ -z "$PACKAGE_PATH" ]; then
-              echo "No package file found, aborting."
-              exit 1
-            fi
-            
-            # Extract the package name from the path
-            PACKAGE_NAME=$(basename ${PACKAGE_PATH})
-            echo "Found package: ${PACKAGE_NAME}"
-            
-            # Clone the repository using HTTPS with a Personal Access Token
-            git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
-            cd conda-store
-            
-            # Configure Git user
-            git config --global user.email "surendra.nagula.contractor@realtor.com"
-            git config --global user.name "surendra136938"
-            
-            # Checkout the branch or create it if it doesn't exist
-            git fetch origin
-            git checkout packages || git checkout -b packages
-            
-            # Copy the package to the repo
-            cp ${PACKAGE_PATH} .
-            git add ${PACKAGE_NAME}
-            git commit -m "Add new Conda package ${PACKAGE_NAME}"
-            
-            # Pull and rebase to handle conflicts, if branch exists remotely
-            if git show-ref --verify --quiet refs/remotes/origin/packages; then
-              git pull origin packages --rebase || {
-                echo "Merge conflict encountered. Resolving..."
-                git rebase --abort
-                git pull origin packages --no-rebase
-              }
+            if git diff --quiet HEAD^...HEAD -- my_package/; then
+              echo "No changes detected in my_package"
+              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
             else
-              echo "Branch 'packages' does not exist on remote; skipping rebase."
-            fi
-            
-            git push origin packages
-
+              echo "Changes detected in my_package"
+              echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
       - run:
-          name: Clean up
-          command: conda clean --all --yes
+          name: Trigger my_package Build
+          command: |
+            if [ "$SKIP_PIPELINE" = "false" ]; then
+              circleci config process .circleci/ocpipes.yml > processed.yml
+              circleci local execute -c processed.yml
+            else
+              echo "Skipping my_package build"
+            fi
 
 workflows:
-  version: 2
-  build_and_upload:
+  build-pipeline:
     jobs:
-      - build
+      - setup:
+          context:
+            - artifactory
+            - aws
+      - linting:
+          requires:
+            - setup
+      - test:
+          requires:
+            - setup
+          context:
+            - aws
+      - static-analysis:
+          requires:
+            - setup
+      - sonar:
+          context: [aws, sonarqube]
+          requires:
+            - test
+      - publish:
+          requires:
+            - linting
+            - static-analysis
+            - test
+            - sonar
+          context:
+            - artifactory
+            - github
+            - was
+      - check_for_changes:
+          requires:
+            - publish
