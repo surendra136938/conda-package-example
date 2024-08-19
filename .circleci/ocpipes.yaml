@@ -13,12 +13,13 @@ jobs:
           command: |
             if git diff --quiet origin/main...HEAD -- my_package/; then
               echo "No changes detected in my_package"
-              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
+              circleci-agent step halt
             else
               echo "Changes detected in my_package"
+   # No need to use a variable for skipping, halt directly stops execution.
+
       - run:
           name: Trigger Main Pipeline
-          when: not: equal: ["true", "<< pipeline.parameters.skip_pipeline >>"]
           command: |
             circleci config process .circleci/config.yml > processed.yml
             circleci local execute -c processed.yml
