@@ -31,7 +31,7 @@ jobs:
               curl -X POST --header "Content-Type: application/json" \
               --header "Circle-Token: $CIRCLE_TOKEN" \
               -d '{
-                "branch": "main",
+                "branch": "circleci-project-setup",
                 "parameters": {
                   "run_my_package_pipeline": true
                 }
