@@ -1,9 +1,5 @@
 version: 2.1
 
-parameters:
-  run_my_package_pipeline:
-    type: boolean
-    default: false
 
 jobs:
   check_for_changes:
@@ -11,6 +7,23 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
+      
+      # Enable shell debugging
+      - run:
+          name: Enable shell debugging
+          command: set -x
+
+      # Log important environment variables
+      - run:
+          name: Log Environment Variables
+          command: |
+            echo "CircleCI Environment Variables:"
+            echo "CIRCLE_PROJECT_USERNAME: $CIRCLE_PROJECT_USERNAME"
+            echo "CIRCLE_PROJECT_REPONAME: $CIRCLE_PROJECT_REPONAME"
+            echo "CIRCLE_BRANCH: $CIRCLE_BRANCH"
+            echo "CIRCLE_TOKEN: $CIRCLE_TOKEN"
+            echo "CIRCLE_JOB: $CIRCLE_JOB"
+
       - run:
           name: Check for changes in "my_package" directory
           command: |
@@ -23,25 +36,36 @@ jobs:
               echo "Changes detected in my_package"
               echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
             fi
+      
       - run:
-          name: Trigger my_package Build
+          name: Trigger my_package Build with Debugging
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Triggering my_package build..."
-              curl -X POST --header "Content-Type: application/json" \
-              --header "Circle-Token: $CIRCLE_TOKEN" \
-              -d '{
-                "branch": "circleci-project-setup",
+              
+              # Log the request body for debugging
+              REQUEST_BODY=$(cat <<EOF
+              {
                 "parameters": {
-                  "run_my_package_pipeline": true
+                  "myparam": "./myspecialdir",
+                  "myspecialversion": "4.8.2"
                 }
-              }' https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline
+              }
+              EOF
+              )
+              echo "Request Body: $REQUEST_BODY"
+              
+              # Make the API call and log the full response
+              RESPONSE=$(curl -X POST --header "Content-Type: application/json" --header "Circle-Token: $CIRCLE_TOKEN" -d "$REQUEST_BODY" https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline)
+              echo "API Response: $RESPONSE"
+
             else
               echo "Skipping my_package build"
             fi
-
 workflows:
-  version: 2
-  check-changes:
-    jobs:
-      - check_for_changes
+version: 2
+check-changes:
+  jobs:
+    - check_for_changes:
+        # Enable SSH for debugging
+          ssh: true 
