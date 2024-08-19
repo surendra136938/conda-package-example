@@ -18,10 +18,10 @@ jobs:
             git fetch origin
             if git diff --quiet origin/main...HEAD -- my_package/; then
               echo "No changes detected in my_package"
-              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
+              echo 'SKIP_PIPELINE=true' >> $BASH_ENV
             else
               echo "Changes detected in my_package"
-              echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
+              echo 'SKIP_PIPELINE=false' >> $BASH_ENV
             fi
       - run:
           name: Debugging SKIP_PIPELINE
@@ -95,3 +95,4 @@ workflows:
           filters:
             branches:
               only: main
+          when: << pipeline.parameters.SKIP_PIPELINE >> # Ensure the 'build' job runs conditionally
