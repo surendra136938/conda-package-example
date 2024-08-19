@@ -6,9 +6,10 @@ executors:
       - image: continuumio/miniconda3
 
 jobs:
-  check_for_changes:
+  check_and_build:
     docker:
       - image: circleci/python:3.8
+    executor: conda-executor
     steps:
       - checkout
       - run:
@@ -27,75 +28,65 @@ jobs:
           name: Debugging SKIP_PIPELINE
           command: |
             echo "SKIP_PIPELINE is set to: $SKIP_PIPELINE"
+      - run:
+          name: Conditionally Build Conda Package
+          command: |
+            if [ "$SKIP_PIPELINE" = "false" ]; then
+              echo "Running build process..."
+              conda install conda-build awscli -c conda-forge
+              conda install pip
+              pip install black
+              
+              # Format code
+              black .
 
-  build:
-    executor: conda-executor
-    steps:
-      - checkout
-      - run:
-          name: Install Conda Build, AWS CLI, and Black
-          command: |
-            conda install conda-build awscli -c conda-forge
-            conda install pip
-            pip install black
-      - run:
-          name: Format Code with Black
-          command: |
-            black .
-      - run:
-          name: Build Conda Package
-          command: |
-            conda build conda-recipe --output-folder /tmp/conda-bld
-            ls -l /tmp/conda-bld
-      - run:
-          name: Debug Package Directory
-          command: |
-            ls -l /tmp/conda-bld/linux-64
-            ls -l /tmp/conda-bld/noarch
-      - run:
-          name: Upload to Another Git Repo
-          command: |
-            PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
-            if [ -z "$PACKAGE_PATH" ]; then
-              echo "No package file found, aborting."
-              exit 1
-            fi
-            PACKAGE_NAME=$(basename ${PACKAGE_PATH})
-            git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
-            cd conda-store
-            git config --global user.email "surendra.nagula.contractor@realtor.com"
-            git config --global user.name "surendra136938"
-            git fetch origin
-            git checkout packages || git checkout -b packages
-            cp ${PACKAGE_PATH} .
-            git add ${PACKAGE_NAME}
-            git commit -m "Add new Conda package ${PACKAGE_NAME}"
-            if git show-ref --verify --quiet refs/remotes/origin/packages; then
-              git pull origin packages --rebase || {
-                echo "Merge conflict encountered. Resolving..."
-                git rebase --abort
-                git pull origin packages --no-rebase
-              }
+              # Build Conda package
+              conda build conda-recipe --output-folder /tmp/conda-bld
+              echo "Listing contents of /tmp/conda-bld:"
+              ls -l /tmp/conda-bld
+              
+              # Debug package directory
+              echo "Listing contents of /tmp/conda-bld/linux-64:"
+              ls -l /tmp/conda-bld/linux-64
+              echo "Listing contents of /tmp/conda-bld/noarch:"
+              ls -l /tmp/conda-bld/noarch
+              
+              # Upload to another Git repo
+              PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
+              if [ -z "$PACKAGE_PATH" ]; then
+                echo "No package file found, aborting."
+                exit 1
+              fi
+              PACKAGE_NAME=$(basename ${PACKAGE_PATH})
+              echo "Found package: ${PACKAGE_NAME}"
+              git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
+              cd conda-store
+              git config --global user.email "surendra.nagula.contractor@realtor.com"
+              git config --global user.name "surendra136938"
+              git fetch origin
+              git checkout packages || git checkout -b packages
+              cp ${PACKAGE_PATH} .
+              git add ${PACKAGE_NAME}
+              git commit -m "Add new Conda package ${PACKAGE_NAME}"
+              if git show-ref --verify --quiet refs/remotes/origin/packages; then
+                git pull origin packages --rebase || {
+                  echo "Merge conflict encountered. Resolving..."
+                  git rebase --abort
+                  git pull origin packages --no-rebase
+                }
+              else
+                echo "Branch 'packages' does not exist on remote; skipping rebase."
+              fi
+              git push origin packages
+
+              # Clean up
+              conda clean --all --yes
             else
-              echo "Branch 'packages' does not exist on remote; skipping rebase."
+              echo "Skipping build process as no changes were detected."
             fi
-            git push origin packages
-      - run:
-          name: Clean up
-          command: conda clean --all --yes
 
 workflows:
   version: 2
   build_on_changes:
     jobs:
-      - check_for_changes
-      - build:
-          requires:
-            - check_for_changes
-          filters:
-            branches:
-              only: main
-          when:
-            condition:
-              # Use a custom condition to decide if the job should run
-              expression: '<< pipeline.environment.SKIP_PIPELINE >> == "false"'
+      - check_and_build
