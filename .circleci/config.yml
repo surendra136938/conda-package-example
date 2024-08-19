@@ -7,8 +7,6 @@ executors:
 
 jobs:
   check_and_build:
-    docker:
-      - image: circleci/python:3.8
     executor: conda-executor
     steps:
       - checkout
@@ -29,10 +27,17 @@ jobs:
           command: |
             echo "SKIP_PIPELINE is set to: $SKIP_PIPELINE"
       - run:
+          name: Setup Conda Environment
+          command: |
+            conda init bash
+            source ~/.bashrc
+      - run:
           name: Conditionally Build Conda Package
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Running build process..."
+              
+              # Install Conda Build, AWS CLI, and Black
               conda install conda-build awscli -c conda-forge
               conda install pip
               pip install black
