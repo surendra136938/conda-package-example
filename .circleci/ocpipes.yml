@@ -1,31 +1,95 @@
 version: 2.1
 
-setup: true
+parameters:
+  run_my_package_pipeline:
+    type: boolean
+    default: false
+
+executors:
+  conda-executor:
+    docker:
+      - image: continuumio/miniconda3
 
 jobs:
-  check_for_changes:
-    docker:
-      - image: circleci/python:3.8  # Or any image of your choice
+  build:
+    executor: conda-executor
     steps:
       - checkout
       - run:
-          name: Check for changes in "my_package" directory
+          name: Install Conda Build, AWS CLI, and Black
           command: |
-            if git diff --quiet origin/main...HEAD -- my_package/; then
-              echo "No changes detected in my_package"
-              circleci-agent step halt
+            conda install conda-build awscli -c conda-forge
+            conda install pip  # Ensure pip is available
+            pip install black  # Install black using pip
+      - run:
+          name: Format Code with Black
+          command: |
+            black .  # Format all files in the repository
+      - run:
+          name: Build Conda Package
+          command: |
+            conda build conda-recipe --output-folder /tmp/conda-bld
+            echo "Listing contents of /tmp/conda-bld:"
+            ls -l /tmp/conda-bld
+      - run:
+          name: Debug Package Directory
+          command: |
+            echo "Listing contents of /tmp/conda-bld/linux-64:"
+            ls -l /tmp/conda-bld/linux-64
+            echo "Listing contents of /tmp/conda-bld/noarch:"
+            ls -l /tmp/conda-bld/noarch
+      - run:
+          name: Upload to Another Git Repo
+          command: |
+            # Find the package file
+            PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
+            
+            if [ -z "$PACKAGE_PATH" ]; then
+              echo "No package file found, aborting."
+              exit 1
+            fi
+            
+            # Extract the package name from the path
+            PACKAGE_NAME=$(basename ${PACKAGE_PATH})
+            echo "Found package: ${PACKAGE_NAME}"
+            
+            # Clone the repository using HTTPS with a Personal Access Token
+            git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
+            cd conda-store
+            
+            # Configure Git user
+            git config --global user.email "surendra.nagula.contractor@realtor.com"
+            git config --global user.name "surendra136938"
+            
+            # Checkout the branch or create it if it doesn't exist
+            git fetch origin
+            git checkout packages || git checkout -b packages
+            
+            # Copy the package to the repo
+            cp ${PACKAGE_PATH} .
+            git add ${PACKAGE_NAME}
+            git commit -m "Add new Conda package ${PACKAGE_NAME}"
+            
+            # Pull and rebase to handle conflicts, if branch exists remotely
+            if git show-ref --verify --quiet refs/remotes/origin/packages; then
+              git pull origin packages --rebase || {
+                echo "Merge conflict encountered. Resolving..."
+                git rebase --abort
+                git pull origin packages --no-rebase
+              }
             else
-              echo "Changes detected in my_package"
-   # No need to use a variable for skipping, halt directly stops execution.
+              echo "Branch 'packages' does not exist on remote; skipping rebase."
+            fi
+            
+            git push origin packages
 
       - run:
-          name: Trigger Main Pipeline
-          command: |
-            circleci config process .circleci/config.yml > processed.yml
-            circleci local execute -c processed.yml
+          name: Clean up
+          command: conda clean --all --yes
 
 workflows:
   version: 2
-  check-changes:
+  build_and_upload:
+    when: << pipeline.parameters.run_my_package_pipeline >>
     jobs:
-      - check_for_changes
+      - build
