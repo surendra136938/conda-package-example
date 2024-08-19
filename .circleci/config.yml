@@ -23,15 +23,12 @@ jobs:
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Triggering my_package build..."
-              curl -u ${CIRCLECI_TOKEN}: \
-                -d '{
-                      "branch": "circleci-project-setup",
-                      "parameters": {
-                        "CIRCLE_JOB": "build_and_upload"
-                      }
-                    }' \
-                -H "Content-Type: application/json" \
-                -X POST https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline
+              curl -X POST --header "Content-Type: application/json" --header "Circle-Token: $CIRCLE_TOKEN" -d '{
+              "parameters": {
+                "myparam": "./myspecialdir",
+                "myspecialversion": "4.8.2"
+              }
+            }' https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline
 
             else
               echo "Skipping my_package build"
@@ -42,3 +39,13 @@ workflows:
   check-changes:
     jobs:
       - check_for_changes
+
+# curl -u ${CIRCLECI_TOKEN}: \
+#                 -d '{
+#                       "branch": "circleci-project-setup",
+#                       "parameters": {
+#                         "CIRCLE_JOB": "build_and_upload"
+#                       }
+#                     }' \
+#                 -H "Content-Type: application/json" \
+#                 -X POST https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline
