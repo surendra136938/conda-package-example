@@ -95,4 +95,7 @@ workflows:
           filters:
             branches:
               only: main
-          when: << pipeline.parameters.SKIP_PIPELINE >> # Ensure the 'build' job runs conditionally
+          when:
+            condition:
+              # Use a custom condition to decide if the job should run
+              expression: '<< pipeline.environment.SKIP_PIPELINE >> == "false"'
