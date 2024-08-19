@@ -1,0 +1,30 @@
+version: 2.1
+
+setup: true
+
+jobs:
+  check_for_changes:
+    docker:
+      - image: circleci/python:3.8  # Or any image of your choice
+    steps:
+      - checkout
+      - run:
+          name: Check for changes in "my_package" directory
+          command: |
+            if git diff --quiet origin/main...HEAD -- my_package/; then
+              echo "No changes detected in my_package"
+              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
+            else
+              echo "Changes detected in my_package"
+      - run:
+          name: Trigger Main Pipeline
+          when: not: equal: ["true", "<< pipeline.parameters.skip_pipeline >>"]
+          command: |
+            circleci config process .circleci/config.yml > processed.yml
+            circleci local execute -c processed.yml
+
+workflows:
+  version: 2
+  check-changes:
+    jobs:
+      - check_for_changes
