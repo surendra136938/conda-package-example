@@ -1,5 +1,10 @@
 version: 2.1
 
+executors:
+  conda-executor:
+    docker:
+      - image: continuumio/miniconda3
+
 jobs:
   check_for_changes:
     docker:
@@ -24,8 +29,7 @@ jobs:
             echo "SKIP_PIPELINE is set to: $SKIP_PIPELINE"
 
   build:
-    docker:
-      - image: continuumio/miniconda3
+    executor: conda-executor
     steps:
       - checkout
       - run:
@@ -91,4 +95,4 @@ workflows:
           filters:
             branches:
               only: main
-          when: << pipeline.parameters.SKIP_PIPELINE >>  # Only run build job if SKIP_PIPELINE is false
+          when: << pipeline.parameters.SKIP_PIPELINE >>
