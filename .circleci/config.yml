@@ -147,35 +147,35 @@ jobs:
 workflows:
   build-pipeline:
     jobs:
-      - setup:
-          context:
-            - artifactory
-            - aws
-      - linting:
-          requires:
-            - setup
-      - test:
-          requires:
-            - setup
-          context:
-            - aws
-      - static-analysis:
-          requires:
-            - setup
-      - sonar:
-          context: [aws, sonarqube]
-          requires:
-            - test
-      - publish:
-          requires:
-            - linting
-            - static-analysis
-            - test
-            - sonar
-          context:
-            - artifactory
-            - github
-            - was
+      # - setup:
+      #     context:
+      #       - artifactory
+      #       - aws
+      # - linting:
+      #     requires:
+      #       - setup
+      # - test:
+      #     requires:
+      #       - setup
+      #     context:
+      #       - aws
+      # - static-analysis:
+      #     requires:
+      #       - setup
+      # - sonar:
+      #     context: [aws, sonarqube]
+      #     requires:
+      #       - test
+      # - publish:
+      #     requires:
+      #       - linting
+      #       - static-analysis
+      #       - test
+      #       - sonar
+      #     context:
+      #       - artifactory
+      #       - github
+      #       - was
       - check_for_changes:
-          requires:
-            - publish
+          # requires:
+          #   - publish
