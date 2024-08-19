@@ -1,5 +1,9 @@
 version: 2.1
 
+parameters:
+  run_my_package_pipeline:
+    type: boolean
+    default: false
 jobs:
   check_for_changes:
     docker:
