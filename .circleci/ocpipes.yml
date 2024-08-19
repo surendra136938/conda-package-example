@@ -1,5 +1,10 @@
 version: 2.1
 
+parameters:
+  run_my_package_pipeline:
+    type: boolean
+    default: false
+
 executors:
   conda-executor:
     docker:

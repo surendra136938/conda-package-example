@@ -1,9 +1,5 @@
 version: 2.1
 
-parameters:
-  run_my_package_pipeline:
-    type: boolean
-    default: false
 
 jobs:
   check_for_changes:
@@ -33,7 +29,7 @@ jobs:
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Triggering my_package build..."
               curl -u ${CIRCLE_TOKEN}: -X POST --header "Content-Type: application/json" -d '{
-                "branch": "main",
+                "branch": "circleci-project-setup",
                 "parameters": {
                   "run_my_package_pipeline": true
                 }
@@ -46,9 +42,4 @@ workflows:
   version: 2
   check-changes:
     jobs:
-      - check_for_changes:
-          filters:
-            branches:
-              only:
-                - main
-                - circleci-project-setup
+      - check_for_changes
