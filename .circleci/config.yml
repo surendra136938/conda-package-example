@@ -95,4 +95,3 @@ workflows:
           filters:
             branches:
               only: main
-          when: << pipeline.parameters.SKIP_PIPELINE >>
