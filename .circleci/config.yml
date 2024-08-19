@@ -1,6 +1,5 @@
 version: 2.1
 
-
 jobs:
   check_for_changes:
     docker:
@@ -24,6 +23,7 @@ jobs:
             echo "CIRCLE_TOKEN: $CIRCLE_TOKEN"
             echo "CIRCLE_JOB: $CIRCLE_JOB"
 
+      # Check for changes in the "my_package" directory
       - run:
           name: Check for changes in "my_package" directory
           command: |
@@ -37,6 +37,7 @@ jobs:
               echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
             fi
       
+      # Trigger my_package build with debugging
       - run:
           name: Trigger my_package Build with Debugging
           command: |
@@ -46,6 +47,7 @@ jobs:
               # Log the request body for debugging
               REQUEST_BODY=$(cat <<EOF
               {
+                "branch": "main",
                 "parameters": {
                   "myparam": "./myspecialdir",
                   "myspecialversion": "4.8.2"
@@ -62,10 +64,9 @@ jobs:
             else
               echo "Skipping my_package build"
             fi
+
 workflows:
   version: 2
   check-changes:
     jobs:
-      - check_for_changes:
-        # Enable SSH for debugging
-          ssh: true 
+      - check_for_changes
