@@ -49,4 +49,9 @@ workflows:
   check-changes:
     jobs:
       - check_for_changes:
-          ssh: true
+          context: [aws, github]
+          filters:
+            branches:
+              only: main
+          requires:
+            - setup
