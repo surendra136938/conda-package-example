@@ -25,7 +25,7 @@ jobs:
               echo "Triggering my_package build..."
               curl -u ${CIRCLECI_TOKEN}: \
                 -d '{
-                      "branch": "main",
+                      "branch": "circleci-project-setup",
                       "parameters": {
                         "CIRCLE_JOB": "build_and_upload"
                       }
