@@ -63,9 +63,9 @@ jobs:
               echo "Skipping my_package build"
             fi
 workflows:
-version: 2
-check-changes:
-  jobs:
-    - check_for_changes:
+  version: 2
+  check-changes:
+    jobs:
+      - check_for_changes:
         # Enable SSH for debugging
           ssh: true 
