@@ -1,5 +1,10 @@
 version: 2.1
 
+parameters:
+  run_my_package_pipeline:
+    type: boolean
+    default: false
+
 jobs:
   check_for_changes:
     docker:
@@ -23,23 +28,12 @@ jobs:
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
               echo "Triggering my_package build..."
-
-              # Log the request body for debugging
-              REQUEST_BODY=$(cat \<<EOF
-              {
-                "branch": "main",
-                "parameters": {
-                  "myparam": "./myspecialdir",
-                  "myspecialversion": "4.8.2"
+              curl -u ${CIRCLECI_TOKEN}: -X POST --header "Content-Type: application/json" -d '{
+                "branch": "circleci-project-setup",
+                 "parameters": {
+                  "run_my_package_pipeline": true
                 }
-              }
-              EOF
-              )
-              echo "Request Body: $REQUEST_BODY"
-              
-              # Make the API call and log the full response
-              RESPONSE=$(curl -X POST --header "Content-Type: application/json" --header "Circle-Token: $CIRCLE_TOKEN" -d "$REQUEST_BODY" https://circleci.com/api/v2/project/github/surendra136938/conda-package-example/pipeline)
-              echo "API Response: $RESPONSE"
+              }' https://circleci.com/api/v2/project/gh/surendra136938/conda-package-example/pipeline
             else
               echo "Skipping my_package build"
             fi
@@ -48,10 +42,4 @@ workflows:
   version: 2
   check-changes:
     jobs:
-      - check_for_changes:
-          context: [aws, github]
-          filters:
-            branches:
-              only: main
-          requires:
-            - setup
+      - check_for_changes
