@@ -44,6 +44,7 @@ jobs:
               
               # Format code
               black .
+
               # Build Conda package
               conda build conda-recipe --output-folder /tmp/conda-bld
               echo "Listing contents of /tmp/conda-bld:"
@@ -69,16 +70,6 @@ jobs:
               git config --global user.name "surendra136938"
               git fetch origin
               git checkout packages || git checkout -b packages
-              
-              # Check if the package exists and delete it
-              if git ls-files --error-unmatch ${PACKAGE_NAME} > /dev/null 2>&1; then
-                echo "Package ${PACKAGE_NAME} exists in repo. Deleting..."
-                git rm ${PACKAGE_NAME}
-              else
-                echo "Package ${PACKAGE_NAME} does not exist in repo."
-              fi
-              
-              # Copy the new package and push to repo
               cp ${PACKAGE_PATH} .
               git add ${PACKAGE_NAME}
               git commit -m "Add new Conda package ${PACKAGE_NAME}"
@@ -92,7 +83,7 @@ jobs:
                 echo "Branch 'packages' does not exist on remote; skipping rebase."
               fi
               git push origin packages
-              
+
               # Clean up
               conda clean --all --yes
             else
