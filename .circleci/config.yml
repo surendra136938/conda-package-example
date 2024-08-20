@@ -1,13 +1,10 @@
 version: 2.1
 
-executors:
-  conda-executor:
-    docker:
-      - image: continuumio/miniconda3
 
 jobs:
-  check_and_build:
-    executor: conda-executor
+  check_for_changes:
+    docker:
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run:
@@ -17,81 +14,29 @@ jobs:
             git fetch origin
             if git diff --quiet origin/main...HEAD -- my_package/; then
               echo "No changes detected in my_package"
-              echo 'SKIP_PIPELINE=true' >> $BASH_ENV
+              echo 'export SKIP_PIPELINE="true"' >> $BASH_ENV
             else
               echo "Changes detected in my_package"
-              echo 'SKIP_PIPELINE=false' >> $BASH_ENV
+              echo 'export SKIP_PIPELINE="false"' >> $BASH_ENV
             fi
       - run:
           name: Debugging SKIP_PIPELINE
           command: |
             echo "SKIP_PIPELINE is set to: $SKIP_PIPELINE"
       - run:
-          name: Setup Conda Environment
-          command: |
-            conda init bash
-            source ~/.bashrc
-      - run:
-          name: Conditionally Build Conda Package
+          name: Trigger my_package Build
           command: |
             if [ "$SKIP_PIPELINE" = "false" ]; then
-              echo "Running build process..."
-              
-              # Install Conda Build, AWS CLI, and Black
-              conda install conda-build awscli -c conda-forge
-              conda install pip
-              pip install black
-              
-              # Format code
-              black .
-
-              # Build Conda package
-              conda build conda-recipe --output-folder /tmp/conda-bld
-              echo "Listing contents of /tmp/conda-bld:"
-              ls -l /tmp/conda-bld
-              
-              # Debug package directory
-              echo "Listing contents of /tmp/conda-bld/linux-64:"
-              ls -l /tmp/conda-bld/linux-64
-              echo "Listing contents of /tmp/conda-bld/noarch:"
-              ls -l /tmp/conda-bld/noarch
-              
-              # Upload to another Git repo
-              PACKAGE_PATH=$(find /tmp/conda-bld/linux-64 -name '*.tar.bz2' | head -n 1)
-              if [ -z "$PACKAGE_PATH" ]; then
-                echo "No package file found, aborting."
-                exit 1
-              fi
-              PACKAGE_NAME=$(basename ${PACKAGE_PATH})
-              echo "Found package: ${PACKAGE_NAME}"
-              git clone https://surendra136938:${GITHUB_TOKEN}@github.com/surendra136938/conda-store.git
-              cd conda-store
-              git config --global user.email "surendra.nagula.contractor@realtor.com"
-              git config --global user.name "surendra136938"
-              git fetch origin
-              git checkout packages || git checkout -b packages
-              cp ${PACKAGE_PATH} .
-              git add ${PACKAGE_NAME}
-              git commit -m "Add new Conda package ${PACKAGE_NAME}"
-              if git show-ref --verify --quiet refs/remotes/origin/packages; then
-                git pull origin packages --rebase || {
-                  echo "Merge conflict encountered. Resolving..."
-                  git rebase --abort
-                  git pull origin packages --no-rebase
-                }
-              else
-                echo "Branch 'packages' does not exist on remote; skipping rebase."
-              fi
-              git push origin packages
-
-              # Clean up
-              conda clean --all --yes
+              echo "Triggering my_package build..."
+              curl -u ${CIRCLE_TOKEN}: -X POST --header "Content-Type: application/json" -d '{
+                "branch": "circleci-project-setup"
+              }' https://circleci.com/api/v2/project/gh/surendra136938/conda-package-example/pipeline
             else
-              echo "Skipping build process as no changes were detected."
+              echo "Skipping my_package build"
             fi
 
 workflows:
   version: 2
-  build_on_changes:
+  check-changes:
     jobs:
-      - check_and_build
+      - check_for_changes
